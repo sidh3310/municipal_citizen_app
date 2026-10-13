@@ -1,0 +1,29 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Brand Primary Palette -->
+    <color name="primary_blue">#1E3A8A</color>
+    <color name="primary_dark">#0F172A</color>
+    <color name="primary_light">#3B82F6</color>
+    <color name="accent_teal">#0D9488</color>
+
+    <!-- Legacy compatibility mapped to modern primary -->
+    <color name="purple_200">#93C5FD</color>
+    <color name="purple_500">#1E3A8A</color>
+    <color name="purple_700">#0F172A</color>
+    <color name="teal_200">#38BDF8</color>
+    <color name="teal_700">#0D9488</color>
+
+    <!-- Neutrals -->
+    <color name="black">#0F172A</color>
+    <color name="white">#FFFFFF</color>
+    <color name="bg_light">#F8FAFC</color>
+    <color name="card_stroke">#E2E8F0</color>
+    <color name="text_muted">#64748B</color>
+
+    <!-- Status Colors -->
+    <color name="status_submitted">#2563EB</color>
+    <color name="status_review">#D97706</color>
+    <color name="status_progress">#0284C7</color>
+    <color name="status_resolved">#16A34A</color>
+    <color name="status_closed">#64748B</color>
+</resources>
