@@ -85,14 +85,11 @@ class OfficerDashboardActivity : ComponentActivity() {
     private fun fetchOfficerComplaintsFromFirebase() {
         FirebaseRepository.getAllComplaints(
             onSuccess = { complaints ->
-                displayComplaints(complaints)
+                val sortedList = complaints.sortedByDescending { it.upvotes }
+                displayComplaints(sortedList)
             },
             onError = { error ->
-                if (error.contains("PERMISSION_DENIED")) {
-                    Toast.makeText(this@OfficerDashboardActivity, "Firestore Rules locked! Set 'allow read, write: if true;' in Firebase Console -> Rules.", Toast.LENGTH_LONG).show()
-                } else {
-                    Toast.makeText(this@OfficerDashboardActivity, "Error: $error", Toast.LENGTH_SHORT).show()
-                }
+                Toast.makeText(this@OfficerDashboardActivity, "Error: $error", Toast.LENGTH_SHORT).show()
             }
         )
     }

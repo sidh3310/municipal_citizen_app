@@ -167,7 +167,7 @@
                         <TextView
                             android:layout_width="wrap_content"
                             android:layout_height="wrap_content"
-                            android:text="My Complaints"
+                            android:text="All Complaints"
                             android:textColor="#0F172A"
                             android:textSize="18sp"
                             android:textStyle="bold" />
@@ -175,7 +175,7 @@
                         <TextView
                             android:layout_width="wrap_content"
                             android:layout_height="wrap_content"
-                            android:text="Track the status of your submitted reports"
+                            android:text="Browse, track and upvote community reports"
                             android:textColor="#475569"
                             android:textSize="13sp" />
                     </LinearLayout>

@@ -11,7 +11,6 @@ import com.example.municipalcitizenapp.adapters.ComplaintAdapter
 import com.example.municipalcitizenapp.models.Complaint
 import com.example.municipalcitizenapp.network.FirebaseRepository
 import com.example.municipalcitizenapp.network.RetrofitClient
-import com.google.firebase.auth.FirebaseAuth
 import com.google.gson.Gson
 import retrofit2.Call
 import retrofit2.Callback
@@ -47,32 +46,28 @@ class MyComplaintsActivity : ComponentActivity() {
                         val complaints = response.body()!!
                         displayComplaints(complaints)
                     } else {
-                        fetchComplaintsFromFirebase(token)
+                        fetchComplaintsFromFirebase()
                     }
                 }
 
                 override fun onFailure(call: Call<List<Complaint>>, t: Throwable) {
-                    fetchComplaintsFromFirebase(token)
+                    fetchComplaintsFromFirebase()
                 }
             })
         } else {
-            fetchComplaintsFromFirebase(token)
+            fetchComplaintsFromFirebase()
         }
     }
 
-    private fun fetchComplaintsFromFirebase(token: String) {
-        val uid = if (token.isNotEmpty()) token else FirebaseAuth.getInstance().currentUser?.uid ?: ""
-        FirebaseRepository.getUserComplaints(
-            userId = uid,
+    private fun fetchComplaintsFromFirebase() {
+        FirebaseRepository.getAllComplaints(
             onSuccess = { complaints ->
-                displayComplaints(complaints)
+                // Sort by upvotes descending so highest community voted issues appear at the top
+                val sortedComplaints = complaints.sortedByDescending { it.upvotes }
+                displayComplaints(sortedComplaints)
             },
             onError = { error ->
-                if (error.contains("PERMISSION_DENIED")) {
-                    Toast.makeText(this@MyComplaintsActivity, "Firestore Rules locked! Set 'allow read, write: if true;' in Firebase Console -> Rules.", Toast.LENGTH_LONG).show()
-                } else {
-                    Toast.makeText(this@MyComplaintsActivity, "Failed to load complaints: $error", Toast.LENGTH_SHORT).show()
-                }
+                Toast.makeText(this@MyComplaintsActivity, "Failed to load complaints: $error", Toast.LENGTH_SHORT).show()
             }
         )
     }
