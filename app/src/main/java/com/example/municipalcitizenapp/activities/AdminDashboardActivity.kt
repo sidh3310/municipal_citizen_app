@@ -11,6 +11,7 @@ import android.widget.Toast
 import androidx.activity.ComponentActivity
 import com.example.municipalcitizenapp.R
 import com.example.municipalcitizenapp.network.FirebaseRepository
+import com.example.municipalcitizenapp.ui.CategoryPieChartView
 import com.google.android.material.card.MaterialCardView
 import com.google.firebase.auth.FirebaseAuth
 
@@ -18,6 +19,7 @@ class AdminDashboardActivity : ComponentActivity() {
 
     private lateinit var tvTotalUsers: TextView
     private lateinit var tvTotalComplaints: TextView
+    private lateinit var pieChartView: CategoryPieChartView
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -25,8 +27,9 @@ class AdminDashboardActivity : ComponentActivity() {
 
         tvTotalUsers = findViewById(R.id.tvAdminTotalUsers)
         tvTotalComplaints = findViewById(R.id.tvAdminTotalComplaints)
+        pieChartView = findViewById(R.id.pieChartView)
 
-        fetchStats()
+        fetchStatsAndPieChart()
 
         findViewById<MaterialCardView>(R.id.cardManageUsers).setOnClickListener {
             startActivity(Intent(this@AdminDashboardActivity, ManageUsersActivity::class.java))
@@ -45,7 +48,7 @@ class AdminDashboardActivity : ComponentActivity() {
         }
 
         findViewById<Button>(R.id.btnAdminLogout).setOnClickListener {
-            FirebaseAuth.getInstance().signOut()
+            try { FirebaseAuth.getInstance().signOut() } catch (_: Exception) {}
             val sharedPref = getSharedPreferences("prefs", MODE_PRIVATE)
             sharedPref.edit().clear().apply()
             val intent = Intent(this@AdminDashboardActivity, LoginActivity::class.java)
@@ -54,7 +57,12 @@ class AdminDashboardActivity : ComponentActivity() {
         }
     }
 
-    private fun fetchStats() {
+    override fun onResume() {
+        super.onResume()
+        fetchStatsAndPieChart()
+    }
+
+    private fun fetchStatsAndPieChart() {
         FirebaseRepository.getAdminStats(
             onSuccess = { totalUsers, totalComplaints ->
                 tvTotalUsers.text = totalUsers.toString()
@@ -63,6 +71,17 @@ class AdminDashboardActivity : ComponentActivity() {
             onError = {
                 Toast.makeText(this@AdminDashboardActivity, "Error fetching stats", Toast.LENGTH_SHORT).show()
             }
+        )
+
+        FirebaseRepository.getAllComplaints(
+            onSuccess = { complaints ->
+                val categoryCounts = complaints.groupingBy { 
+                    if (it.category.isEmpty()) "Other" else it.category
+                }.eachCount()
+
+                pieChartView.setData(categoryCounts)
+            },
+            onError = {}
         )
     }
 
