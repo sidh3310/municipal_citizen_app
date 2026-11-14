@@ -95,7 +95,7 @@ class OfficerDashboardActivity : ComponentActivity() {
     }
 
     private fun displayComplaints(complaints: List<Complaint>) {
-        rvOfficerComplaints.adapter = ComplaintAdapter(complaints) { complaint ->
+        rvOfficerComplaints.adapter = ComplaintAdapter(complaints, isCitizen = false) { complaint ->
             val intent = Intent(this@OfficerDashboardActivity, OfficerComplaintDetailsActivity::class.java)
             intent.putExtra("complaint_json", Gson().toJson(complaint))
             startActivity(intent)

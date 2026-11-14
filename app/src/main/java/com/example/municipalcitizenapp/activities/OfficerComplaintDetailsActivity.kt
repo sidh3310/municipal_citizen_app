@@ -148,6 +148,15 @@ class OfficerComplaintDetailsActivity : ComponentActivity() {
         tvDetailDescription.text = complaint.description
         etResolutionNotes.setText(complaint.resolution_notes ?: "")
 
+        val tvUpvotedUsersList: TextView = findViewById(R.id.tvUpvotedUsersList)
+        if (complaint.upvotedBy.isNotEmpty()) {
+            val count = complaint.upvotes
+            val names = complaint.upvotedBy.joinToString("\n• ")
+            tvUpvotedUsersList.text = "Total Upvotes: $count\n\nUpvoted by Citizens:\n• $names"
+        } else {
+            tvUpvotedUsersList.text = "Total Upvotes: ${complaint.upvotes}\nNo citizen upvotes recorded yet."
+        }
+
         displayImage(complaint.image, ivDetailPhoto)
     }
 

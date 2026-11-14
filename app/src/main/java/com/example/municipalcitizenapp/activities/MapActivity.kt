@@ -28,7 +28,7 @@ class MapActivity : ComponentActivity() {
     private fun fetchComplaintsForMap() {
         FirebaseRepository.getAllComplaints(
             onSuccess = { complaints ->
-                val adapter = ComplaintAdapter(complaints) { complaint ->
+                val adapter = ComplaintAdapter(complaints, isCitizen = false) { complaint ->
                     if (!complaint.latitude.isNullOrEmpty() && !complaint.longitude.isNullOrEmpty()) {
                         val gmmIntentUri = Uri.parse("geo:${complaint.latitude},${complaint.longitude}?q=${complaint.latitude},${complaint.longitude}(${complaint.title})")
                         val mapIntent = Intent(Intent.ACTION_VIEW, gmmIntentUri)

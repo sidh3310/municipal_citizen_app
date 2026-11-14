@@ -14,6 +14,7 @@ import com.google.firebase.auth.FirebaseAuth
 
 class ComplaintAdapter(
     private val complaints: List<Complaint>,
+    private val isCitizen: Boolean = false,
     private val onItemClick: (Complaint) -> Unit
 ) : RecyclerView.Adapter<ComplaintAdapter.ViewHolder>() {
 
@@ -33,29 +34,38 @@ class ComplaintAdapter(
 
     override fun onBindViewHolder(holder: ViewHolder, position: Int) {
         val complaint = complaints[position]
-        val currentUserId = FirebaseAuth.getInstance().currentUser?.uid ?: ""
+        val currentUser = FirebaseAuth.getInstance().currentUser
+        val currentUserId = currentUser?.uid ?: ""
+        val currentUserEmail = currentUser?.email ?: currentUserId
 
         holder.tvCategory.text = complaint.category
         holder.tvTitle.text = complaint.title
         holder.tvStatus.text = complaint.status
         holder.tvDate.text = complaint.created_at.split("T")[0]
-        holder.btnUpvote.text = "👍 ${complaint.upvotes} Me Too"
 
-        holder.btnUpvote.setOnClickListener {
-            if (complaint.docId.isNotEmpty() && currentUserId.isNotEmpty()) {
-                FirebaseRepository.upvoteComplaint(
-                    docId = complaint.docId,
-                    userId = currentUserId,
-                    onSuccess = { newVotes ->
-                        complaint.upvotes = newVotes
-                        holder.btnUpvote.text = "👍 $newVotes Me Too"
-                        Toast.makeText(holder.itemView.context, "Upvoted! Priority updated.", Toast.LENGTH_SHORT).show()
-                    },
-                    onError = {
-                        Toast.makeText(holder.itemView.context, "Already upvoted", Toast.LENGTH_SHORT).show()
-                    }
-                )
+        if (isCitizen) {
+            holder.btnUpvote.isEnabled = true
+            holder.btnUpvote.text = "👍 ${complaint.upvotes} Me Too"
+            holder.btnUpvote.setOnClickListener {
+                if (complaint.docId.isNotEmpty() && currentUserEmail.isNotEmpty()) {
+                    FirebaseRepository.upvoteComplaint(
+                        docId = complaint.docId,
+                        userId = currentUserEmail,
+                        onSuccess = { newVotes ->
+                            complaint.upvotes = newVotes
+                            holder.btnUpvote.text = "👍 $newVotes Me Too"
+                            Toast.makeText(holder.itemView.context, "Upvoted! Priority updated.", Toast.LENGTH_SHORT).show()
+                        },
+                        onError = {
+                            Toast.makeText(holder.itemView.context, "Already upvoted", Toast.LENGTH_SHORT).show()
+                        }
+                    )
+                }
             }
+        } else {
+            // Read-Only mode for Officers and Admins
+            holder.btnUpvote.isEnabled = false
+            holder.btnUpvote.text = "👍 ${complaint.upvotes} Votes"
         }
 
         holder.itemView.setOnClickListener { onItemClick(complaint) }

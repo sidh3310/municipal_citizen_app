@@ -73,7 +73,7 @@ class MyComplaintsActivity : ComponentActivity() {
     }
 
     private fun displayComplaints(list: List<Complaint>) {
-        adapter = ComplaintAdapter(list) { complaint ->
+        adapter = ComplaintAdapter(list, isCitizen = true) { complaint ->
             val intent = Intent(this@MyComplaintsActivity, ComplaintDetailsActivity::class.java)
             intent.putExtra("complaint_json", Gson().toJson(complaint))
             startActivity(intent)
