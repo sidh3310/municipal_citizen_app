@@ -33,6 +33,7 @@ class OfficerComplaintDetailsActivity : ComponentActivity() {
     private lateinit var tvDetailCategory: TextView
     private lateinit var tvDetailDescription: TextView
     private lateinit var spinnerStatus: Spinner
+    private lateinit var spinnerDepartment: Spinner
     private lateinit var spinnerPriority: Spinner
     private lateinit var etResolutionNotes: EditText
     private lateinit var btnTakeResolvedPhoto: Button
@@ -80,6 +81,7 @@ class OfficerComplaintDetailsActivity : ComponentActivity() {
         tvDetailCategory = findViewById(R.id.tvDetailCategory)
         tvDetailDescription = findViewById(R.id.tvDetailDescription)
         spinnerStatus = findViewById(R.id.spinnerStatus)
+        spinnerDepartment = findViewById(R.id.spinnerDepartment)
         spinnerPriority = findViewById(R.id.spinnerPriority)
         etResolutionNotes = findViewById(R.id.etResolutionNotes)
         btnTakeResolvedPhoto = findViewById(R.id.btnTakeResolvedPhoto)
@@ -190,6 +192,18 @@ class OfficerComplaintDetailsActivity : ComponentActivity() {
         val statusIndex = statuses.indexOf(complaint.status)
         if (statusIndex >= 0) spinnerStatus.setSelection(statusIndex)
 
+        val departments = arrayOf(
+            "Public Works & Roads",
+            "Electrical & Streetlighting",
+            "Sanitation & Waste Management",
+            "Water & Sewage Department",
+            "Environmental & Parks",
+            "Traffic & Transportation"
+        )
+        val deptAdapter = ArrayAdapter(this, android.R.layout.simple_spinner_item, departments)
+        deptAdapter.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item)
+        spinnerDepartment.adapter = deptAdapter
+
         val priorities = arrayOf("LOW", "MEDIUM", "HIGH")
         val priorityAdapter = ArrayAdapter(this, android.R.layout.simple_spinner_item, priorities)
         priorityAdapter.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item)
@@ -215,9 +229,20 @@ class OfficerComplaintDetailsActivity : ComponentActivity() {
     }
 
     private fun updateComplaint() {
-        val newStatus = spinnerStatus.selectedItem.toString()
+        var newStatus = spinnerStatus.selectedItem.toString()
+        val selectedDept = spinnerDepartment.selectedItem.toString()
         val newPriority = spinnerPriority.selectedItem.toString()
         val newNotes = etResolutionNotes.text.toString().trim()
+
+        if (newStatus == "SUBMITTED" && selectedDept.isNotEmpty()) {
+            newStatus = "ASSIGNED"
+        }
+
+        val fullNotes = if (selectedDept.isNotEmpty()) {
+            "Assigned to: $selectedDept. $newNotes".trim()
+        } else {
+            newNotes
+        }
 
         if (complaint.docId.isEmpty()) {
             Toast.makeText(this, "Error: Complaint document ID missing", Toast.LENGTH_SHORT).show()
@@ -230,14 +255,14 @@ class OfficerComplaintDetailsActivity : ComponentActivity() {
             docId = complaint.docId,
             status = newStatus,
             priority = newPriority,
-            resolutionNotes = newNotes,
+            resolutionNotes = fullNotes,
             resolvedImageFilePath = resolvedPhotoPath,
             onSuccess = {
                 btnUpdateStatus.isEnabled = true
                 NotificationHelper.showNotification(
                     this@OfficerComplaintDetailsActivity,
                     "Complaint Status Updated 🔔",
-                    "Complaint '${complaint.title}' status updated to $newStatus."
+                    "Complaint '${complaint.title}' updated to $newStatus ($selectedDept)."
                 )
                 Toast.makeText(this@OfficerComplaintDetailsActivity, "Update successful!", Toast.LENGTH_SHORT).show()
                 finish()

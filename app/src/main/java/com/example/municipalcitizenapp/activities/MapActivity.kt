@@ -45,7 +45,11 @@ class MapActivity : ComponentActivity() {
                 rvMapComplaints.adapter = adapter
             },
             onError = { error ->
-                Toast.makeText(this@MapActivity, "Failed to load map data: $error", Toast.LENGTH_SHORT).show()
+                if (error.contains("PERMISSION_DENIED")) {
+                    Toast.makeText(this@MapActivity, "Firestore Rules locked! Set 'allow read, write: if true;' in Firebase Console -> Rules.", Toast.LENGTH_LONG).show()
+                } else {
+                    Toast.makeText(this@MapActivity, "Failed to load map data: $error", Toast.LENGTH_SHORT).show()
+                }
             }
         )
     }
