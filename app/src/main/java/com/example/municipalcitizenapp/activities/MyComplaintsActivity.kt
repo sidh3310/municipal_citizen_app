@@ -8,9 +8,14 @@ import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
 import com.example.municipalcitizenapp.R
 import com.example.municipalcitizenapp.adapters.ComplaintAdapter
+import com.example.municipalcitizenapp.models.Complaint
 import com.example.municipalcitizenapp.network.FirebaseRepository
+import com.example.municipalcitizenapp.network.RetrofitClient
 import com.google.firebase.auth.FirebaseAuth
 import com.google.gson.Gson
+import retrofit2.Call
+import retrofit2.Callback
+import retrofit2.Response
 
 class MyComplaintsActivity : ComponentActivity() {
 
@@ -27,26 +32,53 @@ class MyComplaintsActivity : ComponentActivity() {
 
     override fun onResume() {
         super.onResume()
-        fetchComplaints()
+        fetchComplaintsDual()
     }
 
-    private fun fetchComplaints() {
+    private fun fetchComplaintsDual() {
         val sharedPref = getSharedPreferences("prefs", MODE_PRIVATE)
-        val token = sharedPref.getString("token", "") ?: FirebaseAuth.getInstance().currentUser?.uid ?: ""
+        val token = sharedPref.getString("token", "") ?: ""
 
-        FirebaseRepository.getUserComplaints(
-            userId = token,
-            onSuccess = { complaints ->
-                adapter = ComplaintAdapter(complaints) { complaint ->
-                    val intent = Intent(this@MyComplaintsActivity, ComplaintDetailsActivity::class.java)
-                    intent.putExtra("complaint_json", Gson().toJson(complaint))
-                    startActivity(intent)
+        if (token.isNotEmpty() && !token.contains("-")) {
+            val authHeader = "Bearer $token"
+            RetrofitClient.instance.getComplaints(authHeader).enqueue(object : Callback<List<Complaint>> {
+                override fun onResponse(call: Call<List<Complaint>>, response: Response<List<Complaint>>) {
+                    if (response.isSuccessful && !response.body().isNullOrEmpty()) {
+                        val complaints = response.body()!!
+                        displayComplaints(complaints)
+                    } else {
+                        fetchComplaintsFromFirebase(token)
+                    }
                 }
-                rvMyComplaints.adapter = adapter
+
+                override fun onFailure(call: Call<List<Complaint>>, t: Throwable) {
+                    fetchComplaintsFromFirebase(token)
+                }
+            })
+        } else {
+            fetchComplaintsFromFirebase(token)
+        }
+    }
+
+    private fun fetchComplaintsFromFirebase(token: String) {
+        val uid = if (token.isNotEmpty()) token else FirebaseAuth.getInstance().currentUser?.uid ?: ""
+        FirebaseRepository.getUserComplaints(
+            userId = uid,
+            onSuccess = { complaints ->
+                displayComplaints(complaints)
             },
             onError = { error ->
                 Toast.makeText(this@MyComplaintsActivity, "Failed to load complaints: $error", Toast.LENGTH_SHORT).show()
             }
         )
+    }
+
+    private fun displayComplaints(list: List<Complaint>) {
+        adapter = ComplaintAdapter(list) { complaint ->
+            val intent = Intent(this@MyComplaintsActivity, ComplaintDetailsActivity::class.java)
+            intent.putExtra("complaint_json", Gson().toJson(complaint))
+            startActivity(intent)
+        }
+        rvMyComplaints.adapter = adapter
     }
 }

@@ -2,15 +2,19 @@ package com.example.municipalcitizenapp.activities
 
 import android.content.Intent
 import android.os.Bundle
+import android.view.View
 import android.widget.ImageView
 import androidx.activity.ComponentActivity
-import androidx.cardview.widget.CardView
 import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
 import com.example.municipalcitizenapp.R
 import com.example.municipalcitizenapp.adapters.AnnouncementAdapter
 import com.example.municipalcitizenapp.network.FirebaseRepository
+import com.example.municipalcitizenapp.network.RetrofitClient
 import com.google.firebase.auth.FirebaseAuth
+import retrofit2.Call
+import retrofit2.Callback
+import retrofit2.Response
 
 class CitizenDashboardActivity : ComponentActivity() {
 
@@ -23,19 +27,19 @@ class CitizenDashboardActivity : ComponentActivity() {
         rvAnnouncements = findViewById(R.id.rvAnnouncements)
         rvAnnouncements.layoutManager = LinearLayoutManager(this@CitizenDashboardActivity)
 
-        findViewById<CardView>(R.id.cardReportIssue).setOnClickListener {
+        findViewById<View>(R.id.cardReportIssue).setOnClickListener {
             startActivity(Intent(this, ReportIssueActivity::class.java))
         }
 
-        findViewById<CardView>(R.id.cardMyComplaints).setOnClickListener {
+        findViewById<View>(R.id.cardMyComplaints).setOnClickListener {
             startActivity(Intent(this, MyComplaintsActivity::class.java))
         }
 
-        findViewById<CardView>(R.id.cardMapView).setOnClickListener {
+        findViewById<View>(R.id.cardMapView).setOnClickListener {
             startActivity(Intent(this, MapActivity::class.java))
         }
 
-        findViewById<CardView>(R.id.cardEmergency).setOnClickListener {
+        findViewById<View>(R.id.cardEmergency).setOnClickListener {
             startActivity(Intent(this, EmergencyActivity::class.java))
         }
 
@@ -55,6 +59,23 @@ class CitizenDashboardActivity : ComponentActivity() {
     }
 
     private fun fetchAnnouncements() {
+        // Dual fetch: Retrofit with Firebase Fallback
+        RetrofitClient.instance.getAnnouncements().enqueue(object : Callback<List<Map<String, Any>>> {
+            override fun onResponse(call: Call<List<Map<String, Any>>>, response: Response<List<Map<String, Any>>>) {
+                if (response.isSuccessful && !response.body().isNullOrEmpty()) {
+                    rvAnnouncements.adapter = AnnouncementAdapter(response.body()!!)
+                } else {
+                    fetchAnnouncementsFromFirebase()
+                }
+            }
+
+            override fun onFailure(call: Call<List<Map<String, Any>>>, t: Throwable) {
+                fetchAnnouncementsFromFirebase()
+            }
+        })
+    }
+
+    private fun fetchAnnouncementsFromFirebase() {
         FirebaseRepository.getAnnouncements(
             onSuccess = { list ->
                 rvAnnouncements.adapter = AnnouncementAdapter(list)
@@ -64,7 +85,7 @@ class CitizenDashboardActivity : ComponentActivity() {
     }
 
     private fun logout() {
-        FirebaseAuth.getInstance().signOut()
+        try { FirebaseAuth.getInstance().signOut() } catch (_: Exception) {}
         val sharedPref = getSharedPreferences("prefs", MODE_PRIVATE)
         sharedPref.edit().clear().apply()
         val intent = Intent(this, LoginActivity::class.java)

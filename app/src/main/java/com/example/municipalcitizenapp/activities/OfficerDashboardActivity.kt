@@ -10,9 +10,14 @@ import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
 import com.example.municipalcitizenapp.R
 import com.example.municipalcitizenapp.adapters.ComplaintAdapter
+import com.example.municipalcitizenapp.models.Complaint
 import com.example.municipalcitizenapp.network.FirebaseRepository
+import com.example.municipalcitizenapp.network.RetrofitClient
 import com.google.firebase.auth.FirebaseAuth
 import com.google.gson.Gson
+import retrofit2.Call
+import retrofit2.Callback
+import retrofit2.Response
 
 class OfficerDashboardActivity : ComponentActivity() {
 
@@ -42,35 +47,63 @@ class OfficerDashboardActivity : ComponentActivity() {
 
     override fun onResume() {
         super.onResume()
-        fetchOfficerComplaints()
+        fetchOfficerComplaintsDual()
     }
 
     private fun logout() {
-        FirebaseAuth.getInstance().signOut()
+        try { FirebaseAuth.getInstance().signOut() } catch (_: Exception) {}
         val sharedPref = getSharedPreferences("prefs", MODE_PRIVATE)
         sharedPref.edit().clear().apply()
         startActivity(Intent(this, LoginActivity::class.java))
         finishAffinity()
     }
 
-    private fun fetchOfficerComplaints() {
-        FirebaseRepository.getAllComplaints(
-            onSuccess = { complaints ->
-                rvOfficerComplaints.adapter = ComplaintAdapter(complaints) { complaint ->
-                    val intent = Intent(this@OfficerDashboardActivity, OfficerComplaintDetailsActivity::class.java)
-                    intent.putExtra("complaint_json", Gson().toJson(complaint))
-                    startActivity(intent)
+    private fun fetchOfficerComplaintsDual() {
+        val sharedPref = getSharedPreferences("prefs", MODE_PRIVATE)
+        val token = sharedPref.getString("token", "") ?: ""
+
+        if (token.isNotEmpty() && !token.contains("-")) {
+            val authHeader = "Bearer $token"
+            RetrofitClient.instance.getComplaints(authHeader).enqueue(object : Callback<List<Complaint>> {
+                override fun onResponse(call: Call<List<Complaint>>, response: Response<List<Complaint>>) {
+                    if (response.isSuccessful && !response.body().isNullOrEmpty()) {
+                        displayComplaints(response.body()!!)
+                    } else {
+                        fetchOfficerComplaintsFromFirebase()
+                    }
                 }
 
-                val pendingCount = complaints.count { it.status != "RESOLVED" && it.status != "CLOSED" }
-                val resolvedCount = complaints.count { it.status == "RESOLVED" }
+                override fun onFailure(call: Call<List<Complaint>>, t: Throwable) {
+                    fetchOfficerComplaintsFromFirebase()
+                }
+            })
+        } else {
+            fetchOfficerComplaintsFromFirebase()
+        }
+    }
 
-                tvTotalComplaints.text = pendingCount.toString()
-                tvResolvedComplaints.text = resolvedCount.toString()
+    private fun fetchOfficerComplaintsFromFirebase() {
+        FirebaseRepository.getAllComplaints(
+            onSuccess = { complaints ->
+                displayComplaints(complaints)
             },
             onError = { error ->
                 Toast.makeText(this@OfficerDashboardActivity, "Error: $error", Toast.LENGTH_SHORT).show()
             }
         )
+    }
+
+    private fun displayComplaints(complaints: List<Complaint>) {
+        rvOfficerComplaints.adapter = ComplaintAdapter(complaints) { complaint ->
+            val intent = Intent(this@OfficerDashboardActivity, OfficerComplaintDetailsActivity::class.java)
+            intent.putExtra("complaint_json", Gson().toJson(complaint))
+            startActivity(intent)
+        }
+
+        val pendingCount = complaints.count { it.status != "RESOLVED" && it.status != "CLOSED" }
+        val resolvedCount = complaints.count { it.status == "RESOLVED" }
+
+        tvTotalComplaints.text = pendingCount.toString()
+        tvResolvedComplaints.text = resolvedCount.toString()
     }
 }
