@@ -14,15 +14,15 @@ class EmergencyActivity : ComponentActivity() {
         setContentView(R.layout.activity_emergency)
 
         findViewById<MaterialCardView>(R.id.cardCallWater).setOnClickListener {
-            dialNumber("108")
+            dialNumber("170")
         }
 
         findViewById<MaterialCardView>(R.id.cardCallPower).setOnClickListener {
-            dialNumber("109")
+            dialNumber("130")
         }
 
         findViewById<MaterialCardView>(R.id.cardCallTree).setOnClickListener {
-            dialNumber("112")
+            dialNumber("999")
         }
 
         findViewById<MaterialCardView>(R.id.cardCallFire).setOnClickListener {
