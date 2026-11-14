@@ -20,6 +20,16 @@ object FirebaseRepository {
     private val db: FirebaseFirestore get() = FirebaseFirestore.getInstance()
     private val storage: FirebaseStorage get() = FirebaseStorage.getInstance()
 
+    fun ensureAuthenticated(onReady: () -> Unit) {
+        if (auth.currentUser != null) {
+            onReady()
+        } else {
+            auth.signInAnonymously()
+                .addOnSuccessListener { onReady() }
+                .addOnFailureListener { onReady() }
+        }
+    }
+
     // --- AUTHENTICATION ---
 
     fun registerUser(
@@ -93,62 +103,64 @@ object FirebaseRepository {
         onSuccess: () -> Unit,
         onError: (String) -> Unit
     ) {
-        val user = auth.currentUser
-        val userId = user?.uid ?: ""
-        val userEmail = user?.email ?: ""
-        val dateFormat = SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss'Z'", Locale.getDefault())
-        val createdAt = dateFormat.format(Date())
+        ensureAuthenticated {
+            val user = auth.currentUser
+            val userId = user?.uid ?: ""
+            val userEmail = user?.email ?: ""
+            val dateFormat = SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss'Z'", Locale.getDefault())
+            val createdAt = dateFormat.format(Date())
 
-        val base64ImageFallback = encodeImageToBase64(imageFilePath)
+            val base64ImageFallback = encodeImageToBase64(imageFilePath)
 
-        val saveComplaintToFirestore = { imageUrl: String? ->
-            val finalImage = if (!imageUrl.isNullOrEmpty()) imageUrl else (base64ImageFallback ?: "")
-            val complaintData = mapOf(
-                "category" to category,
-                "title" to title,
-                "description" to description,
-                "latitude" to latitude,
-                "longitude" to longitude,
-                "image" to finalImage,
-                "status" to "SUBMITTED",
-                "priority" to "MEDIUM",
-                "resolution_notes" to "",
-                "created_at" to createdAt,
-                "userId" to userId,
-                "userEmail" to userEmail,
-                "upvotes" to 0,
-                "upvotedBy" to emptyList<String>()
-            )
+            val saveComplaintToFirestore = { imageUrl: String? ->
+                val finalImage = if (!imageUrl.isNullOrEmpty()) imageUrl else (base64ImageFallback ?: "")
+                val complaintData = mapOf(
+                    "category" to category,
+                    "title" to title,
+                    "description" to description,
+                    "latitude" to latitude,
+                    "longitude" to longitude,
+                    "image" to finalImage,
+                    "status" to "SUBMITTED",
+                    "priority" to "MEDIUM",
+                    "resolution_notes" to "",
+                    "created_at" to createdAt,
+                    "userId" to userId,
+                    "userEmail" to userEmail,
+                    "upvotes" to 0,
+                    "upvotedBy" to emptyList<String>()
+                )
 
-            db.collection("complaints")
-                .add(complaintData)
-                .addOnSuccessListener { onSuccess() }
-                .addOnFailureListener { e -> onError(e.message ?: "Failed to submit complaint") }
-        }
+                db.collection("complaints")
+                    .add(complaintData)
+                    .addOnSuccessListener { onSuccess() }
+                    .addOnFailureListener { e -> onError(e.message ?: "Failed to submit complaint") }
+            }
 
-        val fileUriToUpload = when {
-            imageUri != null -> imageUri
-            !imageFilePath.isNullOrEmpty() -> Uri.fromFile(File(imageFilePath))
-            else -> null
-        }
+            val fileUriToUpload = when {
+                imageUri != null -> imageUri
+                !imageFilePath.isNullOrEmpty() -> Uri.fromFile(File(imageFilePath))
+                else -> null
+            }
 
-        if (fileUriToUpload != null) {
-            val imageRef = storage.reference.child("complaints/${UUID.randomUUID()}.jpg")
-            imageRef.putFile(fileUriToUpload)
-                .continueWithTask { task ->
-                    if (!task.isSuccessful) {
-                        task.exception?.let { throw it }
+            if (fileUriToUpload != null) {
+                val imageRef = storage.reference.child("complaints/${UUID.randomUUID()}.jpg")
+                imageRef.putFile(fileUriToUpload)
+                    .continueWithTask { task ->
+                        if (!task.isSuccessful) {
+                            task.exception?.let { throw it }
+                        }
+                        imageRef.downloadUrl
                     }
-                    imageRef.downloadUrl
-                }
-                .addOnSuccessListener { uri ->
-                    saveComplaintToFirestore(uri.toString())
-                }
-                .addOnFailureListener {
-                    saveComplaintToFirestore(base64ImageFallback ?: "")
-                }
-        } else {
-            saveComplaintToFirestore("")
+                    .addOnSuccessListener { uri ->
+                        saveComplaintToFirestore(uri.toString())
+                    }
+                    .addOnFailureListener {
+                        saveComplaintToFirestore(base64ImageFallback ?: "")
+                    }
+            } else {
+                saveComplaintToFirestore("")
+            }
         }
     }
 
@@ -158,7 +170,7 @@ object FirebaseRepository {
             val file = File(filePath)
             if (!file.exists()) return null
             val bitmap = BitmapFactory.decodeFile(file.absolutePath) ?: return null
-            
+
             val maxDimension = 640
             val ratio = Math.min(
                 maxDimension.toFloat() / bitmap.width,
@@ -182,62 +194,64 @@ object FirebaseRepository {
         onSuccess: (List<Complaint>) -> Unit,
         onError: (String) -> Unit
     ) {
-        val currentUid = auth.currentUser?.uid ?: ""
-        val currentEmail = auth.currentUser?.email ?: ""
+        ensureAuthenticated {
+            val currentUid = auth.currentUser?.uid ?: ""
+            val currentEmail = auth.currentUser?.email ?: ""
 
-        db.collection("complaints").get()
-            .addOnSuccessListener { result ->
-                val list = mutableListOf<Complaint>()
-                for (doc in result) {
-                    val complaint = doc.toObject(Complaint::class.java)
-                    complaint.docId = doc.id
-
-                    // Match user complaints or fallback to returning all
-                    if (userId.isEmpty() ||
-                        complaint.userId == currentUid ||
-                        complaint.userId == userId ||
-                        (currentEmail.isNotEmpty() && complaint.userEmail == currentEmail)
-                    ) {
-                        list.add(complaint)
-                    }
-                }
-
-                if (list.isEmpty()) {
-                    // Fallback to all complaints if specific match is empty
-                    val allList = mutableListOf<Complaint>()
+            db.collection("complaints").get()
+                .addOnSuccessListener { result ->
+                    val list = mutableListOf<Complaint>()
                     for (doc in result) {
-                        val c = doc.toObject(Complaint::class.java)
-                        c.docId = doc.id
-                        allList.add(c)
+                        val complaint = doc.toObject(Complaint::class.java)
+                        complaint.docId = doc.id
+
+                        if (userId.isEmpty() ||
+                            complaint.userId == currentUid ||
+                            complaint.userId == userId ||
+                            (currentEmail.isNotEmpty() && complaint.userEmail == currentEmail)
+                        ) {
+                            list.add(complaint)
+                        }
                     }
-                    onSuccess(allList)
-                } else {
-                    onSuccess(list)
+
+                    if (list.isEmpty()) {
+                        val allList = mutableListOf<Complaint>()
+                        for (doc in result) {
+                            val c = doc.toObject(Complaint::class.java)
+                            c.docId = doc.id
+                            allList.add(c)
+                        }
+                        onSuccess(allList)
+                    } else {
+                        onSuccess(list)
+                    }
                 }
-            }
-            .addOnFailureListener { e ->
-                onError(e.message ?: "Failed to fetch complaints")
-            }
+                .addOnFailureListener { e ->
+                    onError(e.message ?: "Failed to fetch complaints")
+                }
+        }
     }
 
     fun getAllComplaints(
         onSuccess: (List<Complaint>) -> Unit,
         onError: (String) -> Unit
     ) {
-        db.collection("complaints")
-            .get()
-            .addOnSuccessListener { result ->
-                val list = mutableListOf<Complaint>()
-                for (doc in result) {
-                    val complaint = doc.toObject(Complaint::class.java)
-                    complaint.docId = doc.id
-                    list.add(complaint)
+        ensureAuthenticated {
+            db.collection("complaints")
+                .get()
+                .addOnSuccessListener { result ->
+                    val list = mutableListOf<Complaint>()
+                    for (doc in result) {
+                        val complaint = doc.toObject(Complaint::class.java)
+                        complaint.docId = doc.id
+                        list.add(complaint)
+                    }
+                    onSuccess(list)
                 }
-                onSuccess(list)
-            }
-            .addOnFailureListener { e ->
-                onError(e.message ?: "Failed to fetch complaints")
-            }
+                .addOnFailureListener { e ->
+                    onError(e.message ?: "Failed to fetch complaints")
+                }
+        }
     }
 
     fun upvoteComplaint(
@@ -251,25 +265,27 @@ object FirebaseRepository {
             return
         }
 
-        val docRef = db.collection("complaints").document(docId)
-        db.runTransaction { transaction ->
-            val snapshot = transaction.get(docRef)
-            val currentVotes = snapshot.getLong("upvotes")?.toInt() ?: 0
-            val upvotedBy = (snapshot.get("upvotedBy") as? List<*>)?.mapNotNull { it.toString() } ?: emptyList()
+        ensureAuthenticated {
+            val docRef = db.collection("complaints").document(docId)
+            db.runTransaction { transaction ->
+                val snapshot = transaction.get(docRef)
+                val currentVotes = snapshot.getLong("upvotes")?.toInt() ?: 0
+                val upvotedBy = (snapshot.get("upvotedBy") as? List<*>)?.mapNotNull { it.toString() } ?: emptyList()
 
-            if (!upvotedBy.contains(userId)) {
-                val newVotes = currentVotes + 1
-                val newUpvotedBy = upvotedBy + userId
-                transaction.update(docRef, "upvotes", newVotes)
-                transaction.update(docRef, "upvotedBy", newUpvotedBy)
-                newVotes
-            } else {
-                currentVotes
+                if (!upvotedBy.contains(userId)) {
+                    val newVotes = currentVotes + 1
+                    val newUpvotedBy = upvotedBy + userId
+                    transaction.update(docRef, "upvotes", newVotes)
+                    transaction.update(docRef, "upvotedBy", newUpvotedBy)
+                    newVotes
+                } else {
+                    currentVotes
+                }
+            }.addOnSuccessListener { newVotes ->
+                onSuccess(newVotes)
+            }.addOnFailureListener { e ->
+                onError(e.message ?: "Failed to upvote")
             }
-        }.addOnSuccessListener { newVotes ->
-            onSuccess(newVotes)
-        }.addOnFailureListener { e ->
-            onError(e.message ?: "Failed to upvote")
         }
     }
 
@@ -281,16 +297,18 @@ object FirebaseRepository {
         onSuccess: () -> Unit,
         onError: (String) -> Unit
     ) {
-        val updateData = mapOf(
-            "status" to status,
-            "priority" to priority,
-            "resolution_notes" to resolutionNotes
-        )
+        ensureAuthenticated {
+            val updateData = mapOf(
+                "status" to status,
+                "priority" to priority,
+                "resolution_notes" to resolutionNotes
+            )
 
-        db.collection("complaints").document(docId)
-            .update(updateData)
-            .addOnSuccessListener { onSuccess() }
-            .addOnFailureListener { e -> onError(e.message ?: "Failed to update complaint") }
+            db.collection("complaints").document(docId)
+                .update(updateData)
+                .addOnSuccessListener { onSuccess() }
+                .addOnFailureListener { e -> onError(e.message ?: "Failed to update complaint") }
+        }
     }
 
     fun updateComplaintStatusWithPhoto(
@@ -302,21 +320,23 @@ object FirebaseRepository {
         onSuccess: () -> Unit,
         onError: (String) -> Unit
     ) {
-        val base64ResolvedImage = encodeImageToBase64(resolvedImageFilePath)
+        ensureAuthenticated {
+            val base64ResolvedImage = encodeImageToBase64(resolvedImageFilePath)
 
-        val updateData = mutableMapOf<String, Any>(
-            "status" to status,
-            "priority" to priority,
-            "resolution_notes" to resolutionNotes
-        )
-        if (!base64ResolvedImage.isNullOrEmpty()) {
-            updateData["resolved_image"] = base64ResolvedImage
+            val updateData = mutableMapOf<String, Any>(
+                "status" to status,
+                "priority" to priority,
+                "resolution_notes" to resolutionNotes
+            )
+            if (!base64ResolvedImage.isNullOrEmpty()) {
+                updateData["resolved_image"] = base64ResolvedImage
+            }
+
+            db.collection("complaints").document(docId)
+                .update(updateData)
+                .addOnSuccessListener { onSuccess() }
+                .addOnFailureListener { e -> onError(e.message ?: "Failed to update complaint") }
         }
-
-        db.collection("complaints").document(docId)
-            .update(updateData)
-            .addOnSuccessListener { onSuccess() }
-            .addOnFailureListener { e -> onError(e.message ?: "Failed to update complaint") }
     }
 
     // --- ANNOUNCEMENTS ---
@@ -325,15 +345,17 @@ object FirebaseRepository {
         onSuccess: (List<Map<String, Any>>) -> Unit,
         onError: (String) -> Unit
     ) {
-        db.collection("announcements")
-            .get()
-            .addOnSuccessListener { result ->
-                val list = result.documents.mapNotNull { it.data }
-                onSuccess(list)
-            }
-            .addOnFailureListener { e ->
-                onError(e.message ?: "Failed to fetch announcements")
-            }
+        ensureAuthenticated {
+            db.collection("announcements")
+                .get()
+                .addOnSuccessListener { result ->
+                    val list = result.documents.mapNotNull { it.data }
+                    onSuccess(list)
+                }
+                .addOnFailureListener { e ->
+                    onError(e.message ?: "Failed to fetch announcements")
+                }
+        }
     }
 
     fun postAnnouncement(
@@ -342,17 +364,19 @@ object FirebaseRepository {
         onSuccess: () -> Unit,
         onError: (String) -> Unit
     ) {
-        val data = mapOf(
-            "title" to title,
-            "message" to message,
-            "created_at" to SimpleDateFormat("yyyy-MM-dd HH:mm", Locale.getDefault()).format(Date()),
-            "timestamp" to System.currentTimeMillis()
-        )
+        ensureAuthenticated {
+            val data = mapOf(
+                "title" to title,
+                "message" to message,
+                "created_at" to SimpleDateFormat("yyyy-MM-dd HH:mm", Locale.getDefault()).format(Date()),
+                "timestamp" to System.currentTimeMillis()
+            )
 
-        db.collection("announcements")
-            .add(data)
-            .addOnSuccessListener { onSuccess() }
-            .addOnFailureListener { e -> onError(e.message ?: "Failed to post announcement") }
+            db.collection("announcements")
+                .add(data)
+                .addOnSuccessListener { onSuccess() }
+                .addOnFailureListener { e -> onError(e.message ?: "Failed to post announcement") }
+        }
     }
 
     // --- DEPARTMENTS ---
@@ -361,13 +385,15 @@ object FirebaseRepository {
         onSuccess: (List<Map<String, Any>>) -> Unit,
         onError: (String) -> Unit
     ) {
-        db.collection("departments")
-            .get()
-            .addOnSuccessListener { result ->
-                val list = result.documents.mapNotNull { it.data }
-                onSuccess(list)
-            }
-            .addOnFailureListener { e -> onError(e.message ?: "Failed to fetch departments") }
+        ensureAuthenticated {
+            db.collection("departments")
+                .get()
+                .addOnSuccessListener { result ->
+                    val list = result.documents.mapNotNull { it.data }
+                    onSuccess(list)
+                }
+                .addOnFailureListener { e -> onError(e.message ?: "Failed to fetch departments") }
+        }
     }
 
     fun addDepartment(
@@ -376,15 +402,17 @@ object FirebaseRepository {
         onSuccess: () -> Unit,
         onError: (String) -> Unit
     ) {
-        val data = mapOf(
-            "name" to name,
-            "description" to description
-        )
+        ensureAuthenticated {
+            val data = mapOf(
+                "name" to name,
+                "description" to description
+            )
 
-        db.collection("departments")
-            .add(data)
-            .addOnSuccessListener { onSuccess() }
-            .addOnFailureListener { e -> onError(e.message ?: "Failed to add department") }
+            db.collection("departments")
+                .add(data)
+                .addOnSuccessListener { onSuccess() }
+                .addOnFailureListener { e -> onError(e.message ?: "Failed to add department") }
+        }
     }
 
     // --- USERS & ADMIN STATS ---
@@ -393,29 +421,33 @@ object FirebaseRepository {
         onSuccess: (List<Map<String, Any>>) -> Unit,
         onError: (String) -> Unit
     ) {
-        db.collection("users")
-            .get()
-            .addOnSuccessListener { result ->
-                val list = result.documents.mapNotNull { it.data }
-                onSuccess(list)
-            }
-            .addOnFailureListener { e -> onError(e.message ?: "Failed to fetch users") }
+        ensureAuthenticated {
+            db.collection("users")
+                .get()
+                .addOnSuccessListener { result ->
+                    val list = result.documents.mapNotNull { it.data }
+                    onSuccess(list)
+                }
+                .addOnFailureListener { e -> onError(e.message ?: "Failed to fetch users") }
+        }
     }
 
     fun getAdminStats(
         onSuccess: (totalUsers: Int, totalComplaints: Int) -> Unit,
         onError: (String) -> Unit
     ) {
-        db.collection("users").get().addOnSuccessListener { usersSnap ->
-            val userCount = usersSnap.size()
-            db.collection("complaints").get().addOnSuccessListener { complaintsSnap ->
-                val complaintCount = complaintsSnap.size()
-                onSuccess(userCount, complaintCount)
-            }.addOnFailureListener {
-                onSuccess(userCount, 0)
+        ensureAuthenticated {
+            db.collection("users").get().addOnSuccessListener { usersSnap ->
+                val userCount = usersSnap.size()
+                db.collection("complaints").get().addOnSuccessListener { complaintsSnap ->
+                    val complaintCount = complaintsSnap.size()
+                    onSuccess(userCount, complaintCount)
+                }.addOnFailureListener {
+                    onSuccess(userCount, 0)
+                }
+            }.addOnFailureListener { e ->
+                onError(e.message ?: "Failed to fetch stats")
             }
-        }.addOnFailureListener { e ->
-            onError(e.message ?: "Failed to fetch stats")
         }
     }
 
@@ -425,12 +457,14 @@ object FirebaseRepository {
         onSuccess: (List<Map<String, Any>>) -> Unit,
         onError: (String) -> Unit
     ) {
-        db.collection("notifications")
-            .get()
-            .addOnSuccessListener { result ->
-                val list = result.documents.mapNotNull { it.data }
-                onSuccess(list)
-            }
-            .addOnFailureListener { e -> onError(e.message ?: "Failed to fetch notifications") }
+        ensureAuthenticated {
+            db.collection("notifications")
+                .get()
+                .addOnSuccessListener { result ->
+                    val list = result.documents.mapNotNull { it.data }
+                    onSuccess(list)
+                }
+                .addOnFailureListener { e -> onError(e.message ?: "Failed to fetch notifications") }
+        }
     }
 }
