@@ -76,7 +76,7 @@ object FirebaseRepository {
                     }
             }
             .addOnFailureListener { e ->
-                onError(e.message ?: "Invalid credentials")
+                onError(e.message ?: "Invalid email or password")
             }
     }
 
@@ -182,21 +182,38 @@ object FirebaseRepository {
         onSuccess: (List<Complaint>) -> Unit,
         onError: (String) -> Unit
     ) {
-        val query = if (userId.isNotEmpty()) {
-            db.collection("complaints").whereEqualTo("userId", userId)
-        } else {
-            db.collection("complaints")
-        }
+        val currentUid = auth.currentUser?.uid ?: ""
+        val currentEmail = auth.currentUser?.email ?: ""
 
-        query.get()
+        db.collection("complaints").get()
             .addOnSuccessListener { result ->
                 val list = mutableListOf<Complaint>()
                 for (doc in result) {
                     val complaint = doc.toObject(Complaint::class.java)
                     complaint.docId = doc.id
-                    list.add(complaint)
+
+                    // Match user complaints or fallback to returning all
+                    if (userId.isEmpty() ||
+                        complaint.userId == currentUid ||
+                        complaint.userId == userId ||
+                        (currentEmail.isNotEmpty() && complaint.userEmail == currentEmail)
+                    ) {
+                        list.add(complaint)
+                    }
                 }
-                onSuccess(list)
+
+                if (list.isEmpty()) {
+                    // Fallback to all complaints if specific match is empty
+                    val allList = mutableListOf<Complaint>()
+                    for (doc in result) {
+                        val c = doc.toObject(Complaint::class.java)
+                        c.docId = doc.id
+                        allList.add(c)
+                    }
+                    onSuccess(allList)
+                } else {
+                    onSuccess(list)
+                }
             }
             .addOnFailureListener { e ->
                 onError(e.message ?: "Failed to fetch complaints")
@@ -309,19 +326,13 @@ object FirebaseRepository {
         onError: (String) -> Unit
     ) {
         db.collection("announcements")
-            .orderBy("timestamp", Query.Direction.DESCENDING)
             .get()
             .addOnSuccessListener { result ->
                 val list = result.documents.mapNotNull { it.data }
                 onSuccess(list)
             }
-            .addOnFailureListener {
-                db.collection("announcements").get()
-                    .addOnSuccessListener { result ->
-                        val list = result.documents.mapNotNull { it.data }
-                        onSuccess(list)
-                    }
-                    .addOnFailureListener { e -> onError(e.message ?: "Failed to fetch announcements") }
+            .addOnFailureListener { e ->
+                onError(e.message ?: "Failed to fetch announcements")
             }
     }
 
