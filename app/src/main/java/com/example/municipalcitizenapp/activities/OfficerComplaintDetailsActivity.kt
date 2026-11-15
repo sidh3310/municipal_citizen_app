@@ -151,8 +151,10 @@ class OfficerComplaintDetailsActivity : ComponentActivity() {
         val tvUpvotedUsersList: TextView = findViewById(R.id.tvUpvotedUsersList)
         if (complaint.upvotedBy.isNotEmpty()) {
             val count = complaint.upvotes
-            val names = complaint.upvotedBy.joinToString("\n• ")
-            tvUpvotedUsersList.text = "Total Upvotes: $count\n\nUpvoted by Citizens:\n• $names"
+            FirebaseRepository.resolveVoterNames(complaint.upvotedBy) { names ->
+                val nameListStr = if (names.isNotEmpty()) names.joinToString("\n• ") else complaint.upvotedBy.joinToString("\n• ")
+                tvUpvotedUsersList.text = "Total Community Upvotes: $count\n\nCitizens Who Upvoted:\n• $nameListStr"
+            }
         } else {
             tvUpvotedUsersList.text = "Total Upvotes: ${complaint.upvotes}\nNo citizen upvotes recorded yet."
         }

@@ -289,6 +289,36 @@ object FirebaseRepository {
         }
     }
 
+    fun resolveVoterNames(voterList: List<String>, onResolved: (List<String>) -> Unit) {
+        if (voterList.isEmpty()) {
+            onResolved(emptyList())
+            return
+        }
+
+        ensureAuthenticated {
+            db.collection("users").get()
+                .addOnSuccessListener { result ->
+                    val userMap = mutableMapOf<String, String>()
+                    for (doc in result) {
+                        val uid = doc.id
+                        val email = doc.getString("email") ?: ""
+                        val name = doc.getString("full_name") ?: email
+                        if (uid.isNotEmpty() && name.isNotEmpty()) userMap[uid] = name
+                        if (email.isNotEmpty() && name.isNotEmpty()) userMap[email] = name
+                    }
+
+                    val resolvedNames = voterList.map { item ->
+                        userMap[item] ?: item
+                    }.distinct()
+
+                    onResolved(resolvedNames)
+                }
+                .addOnFailureListener {
+                    onResolved(voterList)
+                }
+        }
+    }
+
     fun updateComplaintStatus(
         docId: String,
         status: String,
