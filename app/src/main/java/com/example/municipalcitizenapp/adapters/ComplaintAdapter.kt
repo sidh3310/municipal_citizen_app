@@ -1,5 +1,6 @@
 package com.example.municipalcitizenapp.adapters
 
+import android.content.Context
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
@@ -34,9 +35,14 @@ class ComplaintAdapter(
 
     override fun onBindViewHolder(holder: ViewHolder, position: Int) {
         val complaint = complaints[position]
+        val context = holder.itemView.context
+        val sharedPref = context.getSharedPreferences("prefs", Context.MODE_PRIVATE)
+
         val currentUser = FirebaseAuth.getInstance().currentUser
-        val currentUserId = currentUser?.uid ?: ""
-        val currentUserEmail = currentUser?.email ?: currentUserId
+        val userFullName = sharedPref.getString("full_name", null)
+            ?: currentUser?.displayName
+            ?: currentUser?.email
+            ?: "Citizen User"
 
         holder.tvCategory.text = complaint.category
         holder.tvTitle.text = complaint.title
@@ -47,17 +53,17 @@ class ComplaintAdapter(
             holder.btnUpvote.isEnabled = true
             holder.btnUpvote.text = "👍 ${complaint.upvotes} Me Too"
             holder.btnUpvote.setOnClickListener {
-                if (complaint.docId.isNotEmpty() && currentUserEmail.isNotEmpty()) {
+                if (complaint.docId.isNotEmpty() && userFullName.isNotEmpty()) {
                     FirebaseRepository.upvoteComplaint(
                         docId = complaint.docId,
-                        userId = currentUserEmail,
+                        userId = userFullName,
                         onSuccess = { newVotes ->
                             complaint.upvotes = newVotes
                             holder.btnUpvote.text = "👍 $newVotes Me Too"
-                            Toast.makeText(holder.itemView.context, "Upvoted! Priority updated.", Toast.LENGTH_SHORT).show()
+                            Toast.makeText(context, "Upvoted as $userFullName!", Toast.LENGTH_SHORT).show()
                         },
                         onError = {
-                            Toast.makeText(holder.itemView.context, "Already upvoted", Toast.LENGTH_SHORT).show()
+                            Toast.makeText(context, "Already upvoted", Toast.LENGTH_SHORT).show()
                         }
                     )
                 }
