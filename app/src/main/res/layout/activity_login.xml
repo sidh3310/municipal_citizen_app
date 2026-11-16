@@ -4,45 +4,50 @@
     android:layout_width="match_parent"
     android:layout_height="match_parent"
     android:orientation="vertical"
-    android:padding="32dp"
+    android:padding="28dp"
     android:gravity="center_horizontal"
-    android:background="@color/white">
+    android:background="@color/bg_light">
 
     <ImageView
-        android:layout_width="100dp"
-        android:layout_height="100dp"
-        android:src="@android:drawable/ic_menu_myplaces"
-        android:layout_marginTop="48dp"
-        app:tint="@color/purple_500" />
+        android:layout_width="110dp"
+        android:layout_height="110dp"
+        android:src="@drawable/ic_app_logo"
+        android:layout_marginTop="24dp" />
 
     <TextView
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
         android:text="Municipal Citizen"
-        android:textSize="28sp"
+        android:textSize="26sp"
         android:textStyle="bold"
-        android:textColor="@color/black"
-        android:layout_marginTop="16dp" />
+        android:textColor="#0F172A"
+        android:layout_marginTop="12dp" />
 
     <TextView
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
         android:text="Making our city better, together."
-        android:textColor="#666666"
-        android:layout_marginBottom="48dp" />
+        android:textColor="#64748B"
+        android:textSize="14sp"
+        android:layout_marginBottom="36dp" />
 
     <com.google.android.material.textfield.TextInputLayout
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:hint="Email"
+        android:hint="Email Address"
         style="@style/Widget.Material3.TextInputLayout.OutlinedBox"
         android:layout_marginBottom="16dp"
-        app:startIconDrawable="@android:drawable/ic_dialog_email">
+        app:startIconDrawable="@android:drawable/ic_dialog_email"
+        app:boxCornerRadiusTopStart="16dp"
+        app:boxCornerRadiusTopEnd="16dp"
+        app:boxCornerRadiusBottomStart="16dp"
+        app:boxCornerRadiusBottomEnd="16dp">
         <com.google.android.material.textfield.TextInputEditText
             android:id="@+id/etEmail"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:inputType="textEmailAddress" />
+            android:inputType="textEmailAddress"
+            android:textColor="#0F172A" />
     </com.google.android.material.textfield.TextInputLayout>
 
     <com.google.android.material.textfield.TextInputLayout
@@ -52,35 +57,32 @@
         style="@style/Widget.Material3.TextInputLayout.OutlinedBox"
         android:layout_marginBottom="24dp"
         app:startIconDrawable="@android:drawable/ic_lock_idle_lock"
-        app:passwordToggleEnabled="true">
+        app:passwordToggleEnabled="true"
+        app:boxCornerRadiusTopStart="16dp"
+        app:boxCornerRadiusTopEnd="16dp"
+        app:boxCornerRadiusBottomStart="16dp"
+        app:boxCornerRadiusBottomEnd="16dp">
         <com.google.android.material.textfield.TextInputEditText
             android:id="@+id/etPassword"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:inputType="textPassword" />
+            android:inputType="textPassword"
+            android:textColor="#0F172A" />
     </com.google.android.material.textfield.TextInputLayout>
 
     <Button
         android:id="@+id/btnLogin"
         android:layout_width="match_parent"
-        android:layout_height="56dp"
+        android:layout_height="52dp"
         android:text="LOGIN"
-        android:textSize="16sp"
+        android:textSize="15sp"
         android:layout_marginBottom="16dp" />
-
-    <TextView
-        android:id="@+id/tvForgotPassword"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:text="Forgot Password?"
-        android:textColor="@color/purple_500"
-        android:layout_marginBottom="32dp" />
 
     <LinearLayout
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:orientation="horizontal"
-        android:layout_marginBottom="16dp">
+        android:layout_marginBottom="24dp">
 
         <Button
             android:id="@+id/btnDemoOfficer"
@@ -110,14 +112,15 @@
         <TextView
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:text="Don't have an account? " />
+            android:text="Don't have an account? "
+            android:textColor="#64748B" />
         <TextView
             android:id="@+id/tvRegister"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:text="Register"
             android:textStyle="bold"
-            android:textColor="@color/purple_500" />
+            android:textColor="#2563EB" />
     </LinearLayout>
 
 </LinearLayout>

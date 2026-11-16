@@ -1,17 +1,40 @@
 <?xml version="1.0" encoding="utf-8"?>
-<RelativeLayout xmlns:android="http://schemas.android.com/apk/res/android"
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    android:background="@color/purple_500"
-    android:gravity="center">
+    android:orientation="vertical"
+    android:background="@drawable/bg_header_gradient"
+    android:gravity="center"
+    android:padding="32dp">
+
+    <ImageView
+        android:layout_width="140dp"
+        android:layout_height="140dp"
+        android:src="@drawable/ic_app_logo"
+        android:layout_marginBottom="24dp" />
 
     <TextView
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:text="MUNICIPAL CITIZEN APP"
-        android:textColor="@android:color/white"
-        android:textSize="28sp"
+        android:text="Municipal Citizen"
+        android:textColor="@color/white"
+        android:textSize="32sp"
         android:textStyle="bold"
-        android:textAlignment="center" />
+        android:letterSpacing="0.02" />
 
-</RelativeLayout>
+    <TextView
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="Civic Issue Management Platform"
+        android:textColor="#94A3B8"
+        android:textSize="15sp"
+        android:layout_marginTop="8dp"
+        android:layout_marginBottom="48dp" />
+
+    <ProgressBar
+        android:layout_width="36dp"
+        android:layout_height="36dp"
+        android:indeterminateTint="#38BDF8" />
+
+</LinearLayout>
