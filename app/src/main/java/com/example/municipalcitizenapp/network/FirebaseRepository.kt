@@ -534,7 +534,38 @@ object FirebaseRepository {
                             list.add(data)
                         }
                     }
-                    onSuccess(list)
+
+                    if (list.isNotEmpty()) {
+                        onSuccess(list)
+                    } else {
+                        // Dynamic Fallback: Generate notification feed from complaints
+                        db.collection("complaints").get().addOnSuccessListener { complaintsSnap ->
+                            val generatedList = mutableListOf<Map<String, Any>>()
+                            for (doc in complaintsSnap) {
+                                val title = doc.getString("title") ?: "Complaint"
+                                val status = doc.getString("status") ?: "SUBMITTED"
+                                val createdAt = doc.getString("created_at")?.split("T")?.get(0) ?: "Today"
+                                val item = mapOf<String, Any>(
+                                    "title" to "Complaint Status: $status 🔔",
+                                    "message" to "Your reported issue '$title' is currently in $status status.",
+                                    "created_at" to createdAt
+                                )
+                                generatedList.add(item)
+                            }
+                            if (generatedList.isEmpty()) {
+                                generatedList.add(
+                                    mapOf(
+                                        "title" to "Welcome to Municipal Citizen 🏛️",
+                                        "message" to "You will receive real-time notifications here when you report issues or when municipal officers update status.",
+                                        "created_at" to "System"
+                                    )
+                                )
+                            }
+                            onSuccess(generatedList)
+                        }.addOnFailureListener {
+                            onSuccess(emptyList())
+                        }
+                    }
                 }
                 .addOnFailureListener { e -> onError(e.message ?: "Failed to fetch notifications") }
         }
