@@ -13,6 +13,7 @@ class NotificationAdapter(private val notifications: List<Map<String, Any>>) :
     class ViewHolder(view: View) : RecyclerView.ViewHolder(view) {
         val tvTitle: TextView = view.findViewById(R.id.tvNotificationTitle)
         val tvMessage: TextView = view.findViewById(R.id.tvNotificationMessage)
+        val tvDate: TextView = view.findViewById(R.id.tvNotificationDate)
     }
 
     override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): ViewHolder {
@@ -23,8 +24,9 @@ class NotificationAdapter(private val notifications: List<Map<String, Any>>) :
 
     override fun onBindViewHolder(holder: ViewHolder, position: Int) {
         val notification = notifications[position]
-        holder.tvTitle.text = notification["title"]?.toString() ?: ""
+        holder.tvTitle.text = notification["title"]?.toString() ?: "Municipal Update 🔔"
         holder.tvMessage.text = notification["message"]?.toString() ?: ""
+        holder.tvDate.text = notification["created_at"]?.toString() ?: ""
     }
 
     override fun getItemCount() = notifications.size

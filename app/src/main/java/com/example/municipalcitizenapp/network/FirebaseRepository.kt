@@ -133,7 +133,15 @@ object FirebaseRepository {
 
                 db.collection("complaints")
                     .add(complaintData)
-                    .addOnSuccessListener { onSuccess() }
+                    .addOnSuccessListener { _ ->
+                        // Server-side Notification table record
+                        addNotification(
+                            userEmail = if (userEmail.isNotEmpty()) userEmail else userId,
+                            title = "Complaint Submitted 📩",
+                            message = "Your report '$title' was submitted successfully and is now under municipal review."
+                        )
+                        onSuccess()
+                    }
                     .addOnFailureListener { e -> onError(e.message ?: "Failed to submit complaint") }
             }
 
@@ -327,18 +335,7 @@ object FirebaseRepository {
         onSuccess: () -> Unit,
         onError: (String) -> Unit
     ) {
-        ensureAuthenticated {
-            val updateData = mapOf(
-                "status" to status,
-                "priority" to priority,
-                "resolution_notes" to resolutionNotes
-            )
-
-            db.collection("complaints").document(docId)
-                .update(updateData)
-                .addOnSuccessListener { onSuccess() }
-                .addOnFailureListener { e -> onError(e.message ?: "Failed to update complaint") }
-        }
+        updateComplaintStatusWithPhoto(docId, status, priority, resolutionNotes, null, onSuccess, onError)
     }
 
     fun updateComplaintStatusWithPhoto(
@@ -364,7 +361,20 @@ object FirebaseRepository {
 
             db.collection("complaints").document(docId)
                 .update(updateData)
-                .addOnSuccessListener { onSuccess() }
+                .addOnSuccessListener {
+                    // Fetch complaint owner details to write notification row
+                    db.collection("complaints").document(docId).get()
+                        .addOnSuccessListener { snap ->
+                            val ownerEmail = snap.getString("userEmail") ?: snap.getString("userId") ?: ""
+                            val title = snap.getString("title") ?: "Complaint"
+                            addNotification(
+                                userEmail = ownerEmail,
+                                title = "Complaint Status Updated 🔔",
+                                message = "Your report '$title' status has been updated to '$status'."
+                            )
+                        }
+                    onSuccess()
+                }
                 .addOnFailureListener { e -> onError(e.message ?: "Failed to update complaint") }
         }
     }
@@ -481,17 +491,49 @@ object FirebaseRepository {
         }
     }
 
-    // --- NOTIFICATIONS ---
+    // --- NOTIFICATIONS TABLE ---
+
+    fun addNotification(
+        userEmail: String,
+        title: String,
+        message: String,
+        onSuccess: (() -> Unit)? = null
+    ) {
+        ensureAuthenticated {
+            val data = mapOf(
+                "userEmail" to userEmail,
+                "title" to title,
+                "message" to message,
+                "is_read" to false,
+                "created_at" to SimpleDateFormat("yyyy-MM-dd HH:mm", Locale.getDefault()).format(Date()),
+                "timestamp" to System.currentTimeMillis()
+            )
+
+            db.collection("notifications")
+                .add(data)
+                .addOnSuccessListener { onSuccess?.invoke() }
+        }
+    }
 
     fun getNotifications(
         onSuccess: (List<Map<String, Any>>) -> Unit,
         onError: (String) -> Unit
     ) {
         ensureAuthenticated {
+            val currentEmail = auth.currentUser?.email ?: ""
+            val currentUid = auth.currentUser?.uid ?: ""
+
             db.collection("notifications")
                 .get()
                 .addOnSuccessListener { result ->
-                    val list = result.documents.mapNotNull { it.data }
+                    val list = mutableListOf<Map<String, Any>>()
+                    for (doc in result) {
+                        val data = doc.data
+                        val email = data["userEmail"]?.toString() ?: ""
+                        if (email.isEmpty() || email == currentEmail || email == currentUid || currentEmail.isEmpty()) {
+                            list.add(data)
+                        }
+                    }
                     onSuccess(list)
                 }
                 .addOnFailureListener { e -> onError(e.message ?: "Failed to fetch notifications") }

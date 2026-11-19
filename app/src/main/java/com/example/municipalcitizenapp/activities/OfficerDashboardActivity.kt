@@ -1,17 +1,24 @@
 package com.example.municipalcitizenapp.activities
 
+import android.Manifest
 import android.content.Intent
+import android.content.pm.PackageManager
+import android.os.Build
 import android.os.Bundle
 import android.widget.ImageView
 import android.widget.TextView
 import android.widget.Toast
 import androidx.activity.ComponentActivity
+import androidx.activity.result.ActivityResultLauncher
+import androidx.activity.result.contract.ActivityResultContracts
+import androidx.core.content.ContextCompat
 import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
 import com.example.municipalcitizenapp.R
 import com.example.municipalcitizenapp.adapters.ComplaintAdapter
 import com.example.municipalcitizenapp.models.Complaint
 import com.example.municipalcitizenapp.network.FirebaseRepository
+import com.example.municipalcitizenapp.network.NotificationHelper
 import com.example.municipalcitizenapp.network.RetrofitClient
 import com.google.firebase.auth.FirebaseAuth
 import com.google.gson.Gson
@@ -26,10 +33,15 @@ class OfficerDashboardActivity : ComponentActivity() {
     private lateinit var tvTotalComplaints: TextView
     private lateinit var tvResolvedComplaints: TextView
     private lateinit var ivLogout: ImageView
+    private lateinit var notificationPermissionLauncher: ActivityResultLauncher<String>
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_officer_dashboard)
+
+        NotificationHelper.createNotificationChannel(this)
+        setupNotificationPermission()
+        checkNotificationPermission()
 
         tvOfficerName = findViewById(R.id.tvOfficerName)
         tvTotalComplaints = findViewById(R.id.tvTotalComplaints)
@@ -43,6 +55,20 @@ class OfficerDashboardActivity : ComponentActivity() {
         tvOfficerName.text = "Welcome, $name"
 
         ivLogout.setOnClickListener { logout() }
+    }
+
+    private fun setupNotificationPermission() {
+        notificationPermissionLauncher = registerForActivityResult(
+            ActivityResultContracts.RequestPermission()
+        ) { _ -> }
+    }
+
+    private fun checkNotificationPermission() {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+            if (ContextCompat.checkSelfPermission(this, Manifest.permission.POST_NOTIFICATIONS) != PackageManager.PERMISSION_GRANTED) {
+                notificationPermissionLauncher.launch(Manifest.permission.POST_NOTIFICATIONS)
+            }
+        }
     }
 
     override fun onResume() {

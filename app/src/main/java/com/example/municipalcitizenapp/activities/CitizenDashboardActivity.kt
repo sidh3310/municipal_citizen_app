@@ -1,15 +1,22 @@
 package com.example.municipalcitizenapp.activities
 
+import android.Manifest
 import android.content.Intent
+import android.content.pm.PackageManager
+import android.os.Build
 import android.os.Bundle
 import android.view.View
 import android.widget.ImageView
 import androidx.activity.ComponentActivity
+import androidx.activity.result.ActivityResultLauncher
+import androidx.activity.result.contract.ActivityResultContracts
+import androidx.core.content.ContextCompat
 import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
 import com.example.municipalcitizenapp.R
 import com.example.municipalcitizenapp.adapters.AnnouncementAdapter
 import com.example.municipalcitizenapp.network.FirebaseRepository
+import com.example.municipalcitizenapp.network.NotificationHelper
 import com.example.municipalcitizenapp.network.RetrofitClient
 import com.google.firebase.auth.FirebaseAuth
 import retrofit2.Call
@@ -19,10 +26,16 @@ import retrofit2.Response
 class CitizenDashboardActivity : ComponentActivity() {
 
     private lateinit var rvAnnouncements: RecyclerView
+    private lateinit var notificationPermissionLauncher: ActivityResultLauncher<String>
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_citizen_dashboard)
+
+        // Initialize single Notification Channel
+        NotificationHelper.createNotificationChannel(this)
+        setupNotificationPermission()
+        checkNotificationPermission()
 
         rvAnnouncements = findViewById(R.id.rvAnnouncements)
         rvAnnouncements.layoutManager = LinearLayoutManager(this@CitizenDashboardActivity)
@@ -58,8 +71,21 @@ class CitizenDashboardActivity : ComponentActivity() {
         fetchAnnouncements()
     }
 
+    private fun setupNotificationPermission() {
+        notificationPermissionLauncher = registerForActivityResult(
+            ActivityResultContracts.RequestPermission()
+        ) { _ -> }
+    }
+
+    private fun checkNotificationPermission() {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+            if (ContextCompat.checkSelfPermission(this, Manifest.permission.POST_NOTIFICATIONS) != PackageManager.PERMISSION_GRANTED) {
+                notificationPermissionLauncher.launch(Manifest.permission.POST_NOTIFICATIONS)
+            }
+        }
+    }
+
     private fun fetchAnnouncements() {
-        // Dual fetch: Retrofit with Firebase Fallback
         RetrofitClient.instance.getAnnouncements().enqueue(object : Callback<List<Map<String, Any>>> {
             override fun onResponse(call: Call<List<Map<String, Any>>>, response: Response<List<Map<String, Any>>>) {
                 if (response.isSuccessful && !response.body().isNullOrEmpty()) {
